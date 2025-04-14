@@ -1,5 +1,4 @@
 
-package com.mycompany.datastructure;
 
   class Node<T> {
     public T data;
