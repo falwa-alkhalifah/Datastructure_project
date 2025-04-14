@@ -1,6 +1,4 @@
 
-package com.mycompany.datastructure;
-
     class BSTNode <T> {
     public String key;
     public T data;
