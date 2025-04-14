@@ -1,5 +1,4 @@
 
-package com.mycompany.datastructure;
 
 public class Photo {
     
