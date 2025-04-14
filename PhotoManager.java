@@ -1,6 +1,4 @@
 
-package com.mycompany.datastructure;
-
 public class PhotoManager {
    
  LinkedList<Photo> photos;    
