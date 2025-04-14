@@ -18,10 +18,11 @@ public class Photo {
         return tags;
     }
     
-    public void displayPhto(){
-        System.out.println("path: "+path);
-        System.out.println("tags: ");
+ public void display(){
+        System.out.println("\npath: "+path);
+        System.out.print("tags: ");
         tags.display();
+        System.out.println("\n---------------------");
     }
 
 }
