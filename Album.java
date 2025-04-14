@@ -1,6 +1,4 @@
 
-package com.mycompany.datastructure;
-
 public class Album {
     // Constructor
     public Album(String name, String condition, PhotoManager manager);
