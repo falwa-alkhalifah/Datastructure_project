@@ -1,0 +1,66 @@
+public class Album {
+    private String name;
+    private String condition;
+    private PhotoManager manager;
+
+    public Album(String name, String condition, PhotoManager manager) {
+        this.name = name;
+        this.condition = condition.trim();
+        this.manager = manager;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getCondition() {
+        return condition;
+    }
+
+    public PhotoManager getManager() {
+        return manager;
+    }
+
+    public LinkedList<Photo> getPhotos() {
+        LinkedList<Photo> result = new LinkedList<>();
+        String[] requiredTags = condition.isEmpty() ? new String[0] : condition.split("\\s*AND\\s*");
+        LinkedList<Photo> allPhotos = manager.getPhotos();
+
+        for (int i = 0; i < allPhotos.size(); i++) {
+            Photo photo = allPhotos.get(i);
+            LinkedList<String> tags = photo.getTags();
+            boolean matches = true;
+
+            for (int j = 0; j < requiredTags.length; j++) {
+                if (!tags.contains(requiredTags[j])) {
+                    matches = false;
+                    break;
+                }
+            }
+
+            if (matches) {
+                result.insert(photo);
+            }
+        }
+        return result;
+    }
+
+    public int getNbComps() {
+        int comparisons = 0;
+        String[] requiredTags = condition.isEmpty() ? new String[0] : condition.split("\\s*AND\\s*");
+        LinkedList<Photo> allPhotos = manager.getPhotos();
+
+        for (int i = 0; i < allPhotos.size(); i++) {
+            Photo photo = allPhotos.get(i);
+            LinkedList<String> tags = photo.getTags();
+            for (int j = 0; j < requiredTags.length; j++) {
+                comparisons++;
+                if (!tags.contains(requiredTags[j])) {
+                    break;
+                }
+            }
+        }
+
+        return comparisons;
+    }
+}
