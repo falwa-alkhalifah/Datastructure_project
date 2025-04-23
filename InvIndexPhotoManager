@@ -1,65 +1,227 @@
-public class InvIndexPhotoManager {
-    private BST<LinkedList<Photo>> index;
-    private LinkedList<Photo> allPhotos;
-
+/**
+ * InvIndexPhotoManager class manages photos using an inverted index for efficient retrieval
+ */
+public class InvIndexPhotoManager extends PhotoManager {
+    // Inverted index: tag -> list of photos containing that tag
+    private BST<TagPhotos> invertedIndex;
+    
+    /**
+     * Constructor
+     */
     public InvIndexPhotoManager() {
-        index = new BST<>();
-        allPhotos = new LinkedList<>();
+        super();
+        this.invertedIndex = new BST<>();
     }
-
+    
+    /**
+     * Add a photo to the manager and update the inverted index
+     * @param p Photo to be added
+     */
+    @Override
     public void addPhoto(Photo p) {
-        allPhotos.insert(p);
+        super.addPhoto(p);
+        
+        // Update inverted index
         LinkedList<String> tags = p.getTags();
-
         for (int i = 0; i < tags.size(); i++) {
             String tag = tags.get(i);
-            LinkedList<Photo> photos = index.find(tag);
-
-            if (photos == null) {
-                photos = new LinkedList<>();
-                photos.insert(p);
-                index.insert(tag, photos);
+            
+            // Check if tag exists in the index
+            TagPhotos tagPhotos = findTagPhotos(tag);
+            
+            if (tagPhotos == null) {
+                // Create new entry for this tag
+                LinkedList<Photo> photoList = new LinkedList<>();
+                photoList.insert(p);
+                invertedIndex.insert(new TagPhotos(tag, photoList));
             } else {
-                photos.insert(p);
+                // Add photo to existing tag entry
+                tagPhotos.getPhotos().insert(p);
             }
         }
     }
-
+    
+    /**
+     * Delete a photo from the manager and update the inverted index
+     * @param path Path of the photo to be deleted
+     */
+    @Override
     public void deletePhoto(String path) {
-        for (int i = 0; i < allPhotos.size(); i++) {
-            if (allPhotos.get(i).getPath().equals(path)) {
-                Photo toRemove = allPhotos.get(i);
-                allPhotos.remove(i);
-
-                LinkedList<String> tags = toRemove.getTags();
-                for (int j = 0; j < tags.size(); j++) {
-                    String tag = tags.get(j);
-                    LinkedList<Photo> photos = index.find(tag);
-                    if (photos != null) {
-                        for (int k = 0; k < photos.size(); k++) {
-                            if (photos.get(k).getPath().equals(path)) {
-                                photos.remove(k);
-                                break;
-                            }
-                        }
-
-                        // إذا صارت القائمة فاضية، نحذف الوسم من الـ index
-                        if (photos.size() == 0) {
-                            index.remove(tag);
-                        }
-                    }
+        // Find the photo to be deleted
+        Photo photoToDelete = findPhotoByPath(path);
+        if (photoToDelete == null) {
+            return;
+        }
+        
+        // Update inverted index before removing the photo
+        LinkedList<String> tags = photoToDelete.getTags();
+        for (int i = 0; i < tags.size(); i++) {
+            String tag = tags.get(i);
+            
+            TagPhotos tagPhotos = findTagPhotos(tag);
+            if (tagPhotos != null) {
+                // Remove the photo from this tag's list
+                tagPhotos.getPhotos().remove(photoToDelete);
+                
+                // If no photos left for this tag, remove the tag from the index
+                if (tagPhotos.getPhotos().isEmpty()) {
+                    invertedIndex.remove(tagPhotos);
                 }
-
+            }
+        }
+        
+        // Remove the photo from the main list
+        super.deletePhoto(path);
+    }
+    
+    /**
+     * Return the inverted index of all managed photos
+     * @return BST containing the inverted index
+     */
+    public BST<TagPhotos> getInvertedIndex() {
+        return invertedIndex;
+    }
+    
+    /**
+     * Find photos that contain all the specified tags using the inverted index
+     * @param tags List of tags to search for
+     * @param nbComps Reference to count the number of tag comparisons
+     * @return LinkedList of photos that contain all the specified tags
+     */
+    @Override
+    public LinkedList<Photo> findPhotosByTags(LinkedList<String> tags, int[] nbComps) {
+        // If no tags specified, return all photos
+        if (tags.isEmpty()) {
+            return getPhotos();
+        }
+        
+        // Start with all photos from the first tag
+        String firstTag = tags.get(0);
+        TagPhotos firstTagPhotos = findTagPhotos(firstTag);
+        
+        // If first tag not found, return empty list
+        if (firstTagPhotos == null) {
+            return new LinkedList<>();
+        }
+        
+        // Initialize result with photos from first tag
+        LinkedList<Photo> result = new LinkedList<>();
+        LinkedList<Photo> firstTagPhotosList = firstTagPhotos.getPhotos();
+        for (int i = 0; i < firstTagPhotosList.size(); i++) {
+            result.insert(firstTagPhotosList.get(i));
+        }
+        
+        // For each additional tag, filter the result
+        for (int i = 1; i < tags.size(); i++) {
+            String tag = tags.get(i);
+            
+            // Filter photos that don't have this tag
+            LinkedList<Photo> filteredResult = new LinkedList<>();
+            for (int j = 0; j < result.size(); j++) {
+                Photo photo = result.get(j);
+                nbComps[0]++; // Increment comparison counter
+                
+                if (photo.hasTag(tag)) {
+                    filteredResult.insert(photo);
+                }
+            }
+            
+            result = filteredResult;
+            
+            // If no photos left, exit early
+            if (result.isEmpty()) {
                 break;
             }
         }
+        
+        return result;
     }
-
-    public BST<LinkedList<Photo>> getPhotos() {
-        return index;
+    
+    /**
+     * Find a TagPhotos object for a specific tag
+     * @param tag Tag to search for
+     * @return TagPhotos object if found, null otherwise
+     */
+    private TagPhotos findTagPhotos(String tag) {
+        // Get all tag entries from the inverted index
+        LinkedList<TagPhotos> allTagEntries = invertedIndex.inOrderTraversal();
+        
+        // Search for the specific tag
+        for (int i = 0; i < allTagEntries.size(); i++) {
+            TagPhotos tagPhotos = allTagEntries.get(i);
+            if (tagPhotos.getTag().equals(tag)) {
+                return tagPhotos;
+            }
+        }
+        
+        return null;
     }
+}
 
-    public LinkedList<Photo> getAllPhotos() {
-        return allPhotos;
+/**
+ * TagPhotos class represents a tag and the list of photos that contain it
+ * Used as entries in the inverted index
+ */
+class TagPhotos implements Comparable<TagPhotos> {
+    private String tag;
+    private LinkedList<Photo> photos;
+    
+    /**
+     * Constructor
+     * @param tag Tag string
+     * @param photos List of photos containing this tag
+     */
+    public TagPhotos(String tag, LinkedList<Photo> photos) {
+        this.tag = tag;
+        this.photos = photos;
+    }
+    
+    /**
+     * Get the tag
+     * @return Tag string
+     */
+    public String getTag() {
+        return tag;
+    }
+    
+    /**
+     * Get the list of photos containing this tag
+     * @return LinkedList of photos
+     */
+    public LinkedList<Photo> getPhotos() {
+        return photos;
+    }
+    
+    /**
+     * Compare this TagPhotos with another TagPhotos
+     * @param other Other TagPhotos to compare with
+     * @return Negative if this tag is less than other, 0 if equal, positive if greater
+     */
+    @Override
+    public int compareTo(TagPhotos other) {
+        return this.tag.compareTo(other.tag);
+    }
+    
+    /**
+     * Check if two TagPhotos are equal (based on tag)
+     * @param obj Object to compare with
+     * @return true if the tags are the same, false otherwise
+     */
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        
+        TagPhotos other = (TagPhotos) obj;
+        return tag.equals(other.tag);
+    }
+    
+    /**
+     * String representation of the TagPhotos
+     * @return String containing the tag and number of photos
+     */
+    @Override
+    public String toString() {
+        return "Tag[" + tag + ", photos: " + photos.size() + "]";
     }
 }
